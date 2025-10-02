@@ -3,7 +3,6 @@ import { RaceScene } from "@/components/RaceScene";
 import { GameHUD } from "@/components/GameHUD";
 import { GameOverScreen } from "@/components/GameOverScreen";
 import { StartScreen } from "@/components/StartScreen";
-import { AdLoadingOverlay } from "@/components/AdLoadingOverlay";
 import { initializeAdMob, showRewardAd } from "@/utils/admob";
 import { toast } from "sonner";
 
@@ -21,7 +20,6 @@ const Index = () => {
   const [score, setScore] = useState(0);
   const [speed, setSpeed] = useState(5);
   const [adLoading, setAdLoading] = useState(false);
-  const [showingAd, setShowingAd] = useState(false);
   
   const obstacleIdRef = useRef(0);
   const touchStartXRef = useRef(0);
@@ -145,26 +143,33 @@ const Index = () => {
 
   const handleWatchAd = async () => {
     setAdLoading(true);
-    setShowingAd(true);
-  };
-
-  const handleAdComplete = () => {
-    setShowingAd(false);
-    setAdLoading(false);
     
-    // Continue game after ad
-    if (savedGameStateRef.current) {
-      setScore(savedGameStateRef.current.score);
-      setSpeed(savedGameStateRef.current.speed);
-      
-      // Filter out obstacles that are too close to the car (in collision range)
-      const safeObstacles = savedGameStateRef.current.obstacles.filter(
-        (obs) => obs.position < -5 || obs.position > 8
+    try {
+      await showRewardAd(
+        () => {
+          // Ad watched successfully - continue game
+          if (savedGameStateRef.current) {
+            setScore(savedGameStateRef.current.score);
+            setSpeed(savedGameStateRef.current.speed);
+            
+            // Filter out obstacles that are too close to the car (in collision range)
+            // Keep only obstacles that are far enough ahead or behind
+            const safeObstacles = savedGameStateRef.current.obstacles.filter(
+              (obs) => obs.position < -5 || obs.position > 8
+            );
+            setObstacles(safeObstacles);
+          }
+          setGameOver(false);
+          toast.success("Nice! Continue racing!");
+        },
+        () => {
+          // Ad failed or dismissed
+          toast.error("Ad not available. Try restarting instead.");
+        }
       );
-      setObstacles(safeObstacles);
+    } finally {
+      setAdLoading(false);
     }
-    setGameOver(false);
-    toast.success("Nice! Continue racing!");
   };
 
   const handleStart = () => {
@@ -190,7 +195,7 @@ const Index = () => {
       
       <GameHUD score={score} speed={speed} gameStarted={gameStarted && !gameOver} />
       
-      {gameOver && !showingAd && (
+      {gameOver && (
         <GameOverScreen
           score={score}
           onRestart={handleRestart}
@@ -198,8 +203,6 @@ const Index = () => {
           isLoading={adLoading}
         />
       )}
-
-      {showingAd && <AdLoadingOverlay onComplete={handleAdComplete} />}
     </div>
   );
 };
