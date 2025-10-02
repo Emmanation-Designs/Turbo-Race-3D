@@ -151,7 +151,13 @@ const Index = () => {
           if (savedGameStateRef.current) {
             setScore(savedGameStateRef.current.score);
             setSpeed(savedGameStateRef.current.speed);
-            setObstacles(savedGameStateRef.current.obstacles);
+            
+            // Filter out obstacles that are too close to the car (in collision range)
+            // Keep only obstacles that are far enough ahead or behind
+            const safeObstacles = savedGameStateRef.current.obstacles.filter(
+              (obs) => obs.position < -5 || obs.position > 8
+            );
+            setObstacles(safeObstacles);
           }
           setGameOver(false);
           toast.success("Nice! Continue racing!");
